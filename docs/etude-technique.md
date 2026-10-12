@@ -399,10 +399,11 @@ Aligné sur la table v1 → compatibilité de rendu avec
 1. **Transport OpenChamber** : **Voie A (RPC)**. Le plugin expose un RPC
    (méthodes + événements) ; OpenChamber le consomme via son proxy `/api` et le
    flux d'événements. Générique (TUI, VS Code, autres clients).
-2. **UI OpenChamber** : ~~réutiliser l'existant~~ **révisé après pull** — le
-   plumbing de todo de session ayant été retiré d'OpenChamber `main`, il faut
-   **recréer un store + une UI de todos de session** alimentés par le RPC/les
-   événements du plugin (s'inspirer des todos de projet existants).
+2. **UI OpenChamber** : **recréer une section de todos de session** — nouveau
+   store + nouvelle section/panneau dans l'UI, calqués sur l'architecture des
+   todos de projet existants (`ProjectNotesTodoPanel`/`TodosSection`),
+   alimentés par le RPC et les événements du plugin. (Le plumbing v1 ayant été
+   retiré d'OpenChamber `main`, rien à réutiliser côté session.)
 3. **Parité TUI** : **plus tard** (phase 6 optionnelle), hors périmètre initial.
 4. **Portée de la persistance** : par session (`session/<id>`) — à confirmer en
    phase 1.
