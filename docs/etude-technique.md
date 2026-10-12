@@ -309,6 +309,9 @@ client), s'appuie sur l'API plugin publique, et réutilise le proxy existant.
 
 ## 6. Architecture proposée
 
+> **Section historique** : cette architecture (RPC + UI OpenChamber) a été
+> abandonnée au profit du plugin seul. Voir la révision en §12.
+
 ### 6.1 Plugin OpenCode (`@…/opencode-todolist`)
 
 ```
@@ -419,7 +422,7 @@ Aligné sur la table v1 → compatibilité de rendu avec
 
 | Phase | Contenu | Statut |
 |---|---|---|
-| 1 | Plugin : `todowrite`/`todoread` + `ctx.storage` + injection contexte | **fait** (`index.js`) |
+| 1 | Plugin : `todowrite`/`todoread` + `ctx.storage` + injection contexte | **fait** (`opencode-plugin/index.js`) |
 | 2 | Permissions (`permission: "todowrite"`/`"todoread"`) | **fait** |
 | 3 | Vérification du chargement (OpenCode 2.0.16, `/api/plugin`) | **fait** (actif, outils enregistrés) |
 | 4 | Packaging npm / publication | à faire |
@@ -493,8 +496,10 @@ d'un fork.
 
 ### Implémentation livrée
 
-- `index.js` — le plugin : `todowrite`/`todoread`, `ctx.storage` par session,
-  injection via `ctx.session.hook("context")`.
-- `package.json` — paquet `opencode-todolist` (`exports: { ".": "./index.js" }`).
+- `opencode-plugin/index.js` — le plugin : `todowrite`/`todoread`, `ctx.storage`
+  par session, injection via `ctx.session.hook("context")`.
+- `opencode-plugin/package.json` — paquet `opencode-todolist`
+  (`exports: { ".": "./index.js" }`).
+- `openchamber-plugin/` — répertoire réservé au futur panneau OpenChamber.
 - Vérifié sur OpenCode **2.0.16** : chargement (`/api/plugin` → `id: "todolist"`,
   `state: active`) et outils enregistrés (`todowrite`, `todoread`).
