@@ -1,28 +1,28 @@
 # opencode-plugin
 
-Un petit **plugin OpenCode v2** qui restaure les outils `todowrite` / `todoread`
-et la liste de tâches de session, retirés d'OpenCode v2.
+A small **OpenCode v2 plugin** that restores the `todowrite` / `todoread` tools
+and the session todo list removed from OpenCode v2.
 
-- **Outils natifs** `todowrite` (créer/remplacer la liste) et `todoread` (relire),
-  directs (pas derrière le Code Mode `execute`).
-- **Persistance** par session via `ctx.storage` (le KV durable du plugin) : pas
-  de fichier à gérer, pas d'accès à la base de données.
-- **Survit à la compaction** : la liste des tâches ouvertes est réinjectée dans
-  chaque requête modèle via `ctx.session.hook("context")`.
-- **Aucun process séparé**, aucune config MCP, aucune modification d'OpenCode ni
-  d'OpenChamber.
+- **Native tools** `todowrite` (create/replace the list) and `todoread` (read it
+  back), direct (not behind the Code Mode `execute` tool).
+- **Per-session persistence** through `ctx.storage` (the plugin's durable KV
+  store): no file to manage, no database access.
+- **Survives compaction**: the list of open todos is re-injected into every model
+  request through `ctx.session.hook("context")`.
+- **No separate process**, no MCP configuration, no change to OpenCode or
+  OpenChamber.
 
-> Contexte et comparaison des approches : [`../docs/etude-technique.md`](../docs/etude-technique.md).
+> Context and comparison of approaches: [`../docs/technical-study.md`](../docs/technical-study.md).
 
 ## Installation
 
-Le plugin doit être chargé comme un **répertoire** (OpenCode résout son
-`index.js`). Deux méthodes.
+The plugin must be loaded as a **directory** (OpenCode resolves its `index.js`).
+Two methods.
 
-### 1. Déclarer le dossier dans la config (recommandé)
+### 1. Declare the directory in the config (recommended)
 
-Dans `opencode.jsonc`, au niveau global (`~/.config/opencode/opencode.jsonc`) ou
-projet :
+In `opencode.jsonc`, at the global level (`~/.config/opencode/opencode.jsonc`) or
+project level:
 
 ```jsonc
 {
@@ -30,13 +30,13 @@ projet :
 }
 ```
 
-Redémarrer le serveur OpenCode (ou recharger la config). Le plugin est
-hot-rechargé à chaque modification de `index.js`.
+Restart the OpenCode server (or reload the config). The plugin is hot-reloaded on
+every change to `index.js`.
 
-### 2. Copier dans le dossier de plugins du projet
+### 2. Copy it into the project's plugins directory
 
-Copier ce dossier sous `.opencode/plugins/todolist/` (un **répertoire**, avec
-`index.js` à sa racine) :
+Copy this directory to `.opencode/plugins/todolist/` (a **directory**, with
+`index.js` at its root):
 
 ```
 .opencode/plugins/todolist/
@@ -44,33 +44,34 @@ Copier ce dossier sous `.opencode/plugins/todolist/` (un **répertoire**, avec
 └── index.js
 ```
 
-### Vérifier le chargement
+### Verify it loaded
 
 ```sh
 opencode api get /api/plugin
 ```
 
-Le plugin doit apparaître avec `"id": "todolist"` et `"state": { "status": "active" }`.
+The plugin must appear with `"id": "todolist"` and
+`"state": { "status": "active" }`.
 
-## Utilisation
+## Usage
 
-Le modèle appelle `todowrite` avec la liste complète à chaque changement :
+The model calls `todowrite` with the complete list on every change:
 
 ```json
 { "todos": [
-  { "content": "Lire la spec", "status": "completed", "priority": "high" },
-  { "content": "Écrire la migration", "status": "in_progress", "priority": "high" },
-  { "content": "Ajouter les tests", "status": "pending", "priority": "medium" }
+  { "content": "Read the spec", "status": "completed", "priority": "high" },
+  { "content": "Write the migration", "status": "in_progress", "priority": "high" },
+  { "content": "Add the tests", "status": "pending", "priority": "medium" }
 ] }
 ```
 
-`todoread` renvoie la liste courante. Les tâches ouvertes sont automatiquement
-rappelées au modèle avant chaque appel (donc après une compaction aussi).
+`todoread` returns the current list. Open todos are automatically recalled to the
+model before every request (so after a compaction too).
 
 ## Permissions
 
-Les deux outils exposent des actions de permission `todowrite` et `todoread`.
-Pour les désactiver ou les restreindre, ajouter des règles dans `permissions` :
+Both tools expose permission actions `todowrite` and `todoread`. To disable or
+restrict them, add rules under `permissions`:
 
 ```jsonc
 {
@@ -80,14 +81,14 @@ Pour les désactiver ou les restreindre, ajouter des règles dans `permissions` 
 }
 ```
 
-Par défaut, ils sont disponibles sans demande de permission.
+By default they are available without a permission prompt.
 
 ## Structure
 
 ```
-index.js       # le plugin (ESM sans dépendance, entrypoint du répertoire)
-package.json   # métadonnées du paquet
+index.js       # the plugin (dependency-free ESM, the directory's entrypoint)
+package.json   # package metadata
 ```
 
-Le fichier `index.js` n'importe rien volontairement : OpenCode le charge tel quel,
-sans build ni résolution de dépendances.
+The `index.js` file intentionally imports nothing: OpenCode loads it as-is, with
+no build and no dependency resolution.

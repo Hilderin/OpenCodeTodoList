@@ -1,16 +1,17 @@
 # openchamber-plugin
 
-Emplacement réservé au futur plugin / panneau **OpenChamber** de la todo-list.
+Reserved for a future **OpenChamber** plugin / panel for the todo list.
 
-## Statut
+## Status
 
-Non implémenté. La todo-list est aujourd'hui fournie par le plugin OpenCode
-seul (`../opencode-plugin/`), sans UI OpenChamber : les tâches apparaissent comme
-appels d'outil dans le chat.
+Not planned. After testing the default rendering in OpenChamber, the display was
+judged good enough, so no OpenChamber-side plugin will be built. The todo list is
+provided by the OpenCode plugin alone (`../opencode-plugin/`), with no OpenChamber
+UI: the tasks appear as tool calls in the chat.
 
-## Piste
+## Background
 
-Un panneau de session affichant les tâches, alimenté par le plugin OpenCode,
-pourrait être ajouté ici plus tard. Voir `../docs/etude-technique.md` (§5, §12)
-pour les contraintes d'intégration OpenChamber (sandbox des extensions, absence
-d'accès réseau direct, patron `agent-tool`).
+An OpenChamber session panel showing the tasks, fed by the OpenCode plugin, was
+considered. See `../docs/technical-study.md` (§5, §12) for the OpenChamber
+integration constraints (extension sandbox, no direct network access, the
+`agent-tool` pattern) that informed the decision.
