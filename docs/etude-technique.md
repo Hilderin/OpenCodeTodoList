@@ -3,8 +3,11 @@
 > Document d'étude. Aucune implémentation n'est encore réalisée.
 > Versions de référence observées sur la machine : **OpenCode 2.0.16**
 > (binaire `~/.opencode/bin/opencode`), paquets npm `@opencode/plugin@2.0.26`,
-> `@opencode/schema@2.0.26`, `@opencode/client@2.0.26`, **OpenChamber 2.2.0**
-> (dépôt local `~/Documents/Projects/openchamber`, v1.24.2).
+> `@opencode/schema@2.0.26`, `@opencode/client@2.0.26`, **OpenChamber 2.2.0**.
+>
+> Dépôts sources à jour au 11 oct. 2026 :
+> - `~/Documents/Projects/opencode` — branche `dev`, commit `707de58326`.
+> - `~/Documents/Projects/openchamber` — branche `main`, commit `2dca721e6`.
 
 ---
 
@@ -84,6 +87,14 @@ CREATE INDEX `todo_session_idx` ON `todo` (`session_id`);
 
 Cette table existe encore mais **n'est plus alimentée par aucun code v2**. Un
 plugin n'a **pas** d'accès officiel à la base (pas d'API DB dans `ctx`).
+
+**Confirmé dans la source v2** (`packages/core/src/database/migration/
+20260127222353_familiar_lady_ursula.ts`) : cette migration baseline crée la table
+`todo` et son index. Elle est **embarquée dans le binaire** et enregistrée comme
+exécutée — une **installation v2 neuve obtient donc la table**, sans rien créer.
+Aucune migration ultérieure ne la supprime. Elle reste néanmoins **orpheline**
+(voir §7.1). Côté migration v1→v2, `packages/core/src/database/
+v1-migration.bun.ts` contient `const REMOVED_TOOLS = ["todowrite"]`.
 
 ---
 
@@ -251,22 +262,28 @@ OpenChamber (monorepo Bun) est un **client + proxy** :
 
 ### 5.1 Ce qui existe déjà côté todo dans OpenChamber
 
-- **UI session todos** : `WorkStatusTasksSection.tsx`, alimentée par
-  `state.todo[sessionID]` (événement `todo.updated`, legacy v1) et
-  `useTodosPersistStore`.
-- **Rendu d'outil** : `toolRenderers.tsx` → `renderTodoOutput` (parse un JSON
-  `[{content,status,priority}]` et l'affiche), `toolHelpers.ts` (métadonnées
-  `todowrite`), `toolPresentation.tsx` (icône `list-check-3`).
-- **Panneau projet** : `ProjectNotesTodoPanel.tsx` (todos/notes/plans
-  **propres à OpenChamber**, stockés par son serveur — sans lien avec OpenCode).
+> **Mise à jour après pull (main `2dca721e6`)** : le plumbing de todo de session a
+> été **retiré** d'OpenChamber, en cohérence avec la suppression côté OpenCode v2.
+
+- **Supprimé** : plus de `WorkStatusTasksSection`, plus de `state.todo` dans
+  `sync/types.ts`, plus de traitement `todo.updated` dans `event-reducer.ts`,
+  plus d'appel `session.todo`. Les seules traces restantes de
+  `todowrite`/`todoread` sont des **commentaires** (`lib/opencode/tools.ts`,
+  `hooks/useAssistantStatus.ts`) et une liste de permissions legacy
+  (`sections/agents/agentPermissionModel.ts`).
+- **Toujours présent — mais distinct** : les **todos de projet**
+  (`ProjectNotesTodoPanel.tsx`, `TodosSection.tsx`, `useProjectContextStore`,
+  `TodoSendDialog.tsx`), **possédés par le serveur OpenChamber** (routes
+  `/api/project-context/:projectId/todos`), sans lien avec OpenCode.
+- **Reste à vérifier** : un éventuel rendu générique d'un outil `todowrite`
+  (l'ancien `renderTodoOutput`/`toolHelpers` ne semble plus exister sur `main`).
 
 ### 5.2 Ce qui manque
 
 - Aucun consommateur de **RPC de plugin** (`ctx.rpc`, `/api/rpc/...`,
   `codemode`) n'existe aujourd'hui dans OpenChamber (recherche : zéro
-  occurrence).
-- `todo.updated` n'est plus émis par OpenCode v2 → `WorkStatusTasksSection`
-  reste vide pour les sessions v2.
+  occurrence côté UI/serveur, hormis les réglages MCP `codemode`).
+- Aucune UI de todo de **session** : elle a été retirée, il faut la recréer.
 
 ### 5.3 Deux voies d'intégration
 
@@ -275,10 +292,10 @@ Le plugin expose `todowrite`/`todoread` + un RPC `todolist` (méthodes `list`/
 `set` + événement `updated`). OpenChamber :
 1. proxy déjà en place : `/api/*` forward → `/api/rpc/todolist/list` fonctionne ;
 2. l'événement `rpc.todolist.updated` arrive dans le flux global → à traiter dans
-   `event-reducer.ts` pour alimenter un store (voire réutiliser la forme
-   `state.todo` attendue par `WorkStatusTasksSection`) ;
-3. UI : panneau dédié (guest extension) ou réutilisation de
-   `WorkStatusTasksSection`.
+   `event-reducer.ts` pour alimenter un **nouveau store de todos de session**
+   (à recréer) ;
+3. UI : **nouveau** panneau/section de todos de session (le composant v1 n'existe
+   plus), éventuellement calqué sur `ProjectNotesTodoPanel`/`TodosSection`.
 
 **Voie B — callback plugin → OpenChamber (patron `agent-tool`).**
 Le plugin OpenCode est injecté par OpenChamber avec une URL + token et `POST`
@@ -347,12 +364,11 @@ Aligné sur la table v1 → compatibilité de rendu avec
 
 ### 6.4 Côté OpenChamber
 
-- Traiter `rpc.todolist.updated` dans `event-reducer.ts` → alimenter
-  `state.todo[sessionID]` (forme déjà consommée par `WorkStatusTasksSection`),
-  **ou** créer un store dédié + un panneau.
-- Option UI : panneau dédié (guest extension `contributes.panel`) ou ajout d'une
-  règle `contributes.tools` pour un rendu riche de `todowrite` (le rendu JSON
-  existant peut suffire).
+- Traiter `rpc.todolist.updated` dans `event-reducer.ts` → alimenter un **nouveau
+  store de todos de session** (l'ancien `state.todo` a été retiré sur `main`).
+- UI : créer une section/panneau de todos de session, en s'inspirant de
+  `ProjectNotesTodoPanel`/`TodosSection` ; ou une règle `contributes.tools` pour
+  un rendu riche de `todowrite`.
 - Hydratation au chargement via `GET /api/rpc/todolist/list`.
 
 ---
@@ -368,8 +384,9 @@ Aligné sur la table v1 → compatibilité de rendu avec
 4. **`ctx.storage` est scoped plugin, pas session** → préfixer les clés.
 5. **Le plugin tourne dans le service partagé** → utiliser `ctx.location`, ne pas
    supposer `process.cwd()`.
-6. **OpenChamber 2.2.0 ≠ dépôt local 1.24.2** : l'architecture observée doit être
-   re-vérifiée sur la version cible avant implémentation.
+6. **Dépôts sources à jour** : opencode `dev` `707de58326`, openchamber `main`
+   `2dca721e6`. Re-vérifier l'architecture avant implémentation, les chemins de
+   fichiers ayant changé (todo de session retiré côté OpenChamber).
 7. **Compatibilité des noms** : garder exactement `todowrite`/`todoread` pour
    réutiliser les rendus et habitudes existants.
 8. **Permission** : déclarer `permission: "todowrite"` pour permettre un
@@ -382,14 +399,16 @@ Aligné sur la table v1 → compatibilité de rendu avec
 1. **Transport OpenChamber** : **Voie A (RPC)**. Le plugin expose un RPC
    (méthodes + événements) ; OpenChamber le consomme via son proxy `/api` et le
    flux d'événements. Générique (TUI, VS Code, autres clients).
-2. **UI OpenChamber** : **réutiliser l'existant** — alimenter `state.todo` via
-   le reducer pour réutiliser `WorkStatusTasksSection` et `renderTodoOutput`.
+2. **UI OpenChamber** : ~~réutiliser l'existant~~ **révisé après pull** — le
+   plumbing de todo de session ayant été retiré d'OpenChamber `main`, il faut
+   **recréer un store + une UI de todos de session** alimentés par le RPC/les
+   événements du plugin (s'inspirer des todos de projet existants).
 3. **Parité TUI** : **plus tard** (phase 6 optionnelle), hors périmètre initial.
 4. **Portée de la persistance** : par session (`session/<id>`) — à confirmer en
    phase 1.
 5. **Nom/édition** : `todowrite` upsert complet (comme v1) — à confirmer.
-6. **Cible de version** : OpenCode `2.0.26` (latest npm), OpenChamber cible à
-   préciser.
+6. **Cible de version** : OpenCode `dev` (`707de58326`) et OpenChamber `main`
+   (`2dca721e6`).
 
 ---
 
