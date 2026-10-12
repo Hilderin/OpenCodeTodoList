@@ -1,0 +1,28 @@
+{
+  "name": "opencode-todolist",
+  "version": "0.1.0",
+  "description": "Restore todowrite/todoread for OpenCode v2 as a plugin (session-scoped, compaction-safe).",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "todo",
+    "todowrite",
+    "todoread"
+  ],
+  "peerDependencies": {
+    "@opencode/plugin": ">=2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@opencode/plugin": {
+      "optional": true
+    }
+  }
+}

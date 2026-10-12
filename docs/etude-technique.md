@@ -394,37 +394,37 @@ Aligné sur la table v1 → compatibilité de rendu avec
 
 ---
 
-## 8. Décisions (tranchées)
+## 8. Décisions (révisées)
 
-1. **Transport OpenChamber** : **Voie A (RPC)**. Le plugin expose un RPC
-   (méthodes + événements) ; OpenChamber le consomme via son proxy `/api` et le
-   flux d'événements. Générique (TUI, VS Code, autres clients).
-2. **UI OpenChamber** : **recréer une section de todos de session** — nouveau
-   store + nouvelle section/panneau dans l'UI, calqués sur l'architecture des
-   todos de projet existants (`ProjectNotesTodoPanel`/`TodosSection`),
-   alimentés par le RPC et les événements du plugin. (Le plumbing v1 ayant été
-   retiré d'OpenChamber `main`, rien à réutiliser côté session.)
-3. **Parité TUI** : **plus tard** (phase 6 optionnelle), hors périmètre initial.
-4. **Portée de la persistance** : par session (`session/<id>`) — à confirmer en
-   phase 1.
-5. **Nom/édition** : `todowrite` upsert complet (comme v1) — à confirmer.
-6. **Cible de version** : OpenCode `dev` (`707de58326`) et OpenChamber `main`
-   (`2dca721e6`).
+> Révision majeure après analyse : le périmètre est ramené à un **plugin OpenCode
+> seul**, sans RPC, sans MCP et sans UI OpenChamber. Voir §12.
+
+1. **Approche** : **plugin OpenCode seul** (pas MCP, pas d'intégration
+   OpenChamber). Le MCP a été écarté (process séparé, pas d'injection contexte,
+   affichage non résolu) ; l'intégration OpenChamber-native a été écartée
+   (nécessite de modifier le core, non nécessaire au besoin).
+2. **UI** : **aucune** pour l'instant — les todos apparaissent comme appels
+   d'outil dans le chat. Un panneau OpenChamber pourra se brancher plus tard
+   par-dessus, sans refaire le backend.
+3. **Persistance** : `ctx.storage`, clé `session/<sessionID>`.
+4. **Nom/édition** : `todowrite` remplace la liste complète (sémantique v1) ;
+   `todoread` relit.
+5. **Outils directs** : `options: { codemode: false }` pour rester hors Code Mode.
+6. **Anti-compaction** : réinjection via `ctx.session.hook("context")`.
+7. **Cible** : OpenCode `dev` (`707de58326`), API plugin `2.0.x`.
 
 ---
 
-## 9. Plan de mise en œuvre (proposé)
+## 9. Plan de mise en œuvre
 
-| Phase | Contenu | Livrable |
+| Phase | Contenu | Statut |
 |---|---|---|
-| 0 | Valider cette étude, trancher les décisions ouvertes | doc à jour |
-| 1 | Plugin minimal : `todowrite`/`todoread` + `ctx.storage` | plugin chargeable, outils visibles |
-| 2 | RPC `list`/`set`/`clear` + événement `updated` | test `opencode api` / client |
-| 3 | Injection contexte (`session.hook("context")`) | survit à la compaction |
-| 4 | Intégration OpenChamber : reducer + store + hydratation | liste visible |
-| 5 | UI (réutilisée ou panneau dédié) | progression, statuts |
-| 6 | Optionnel : plugin TUI (slot sidebar) | parité terminal |
-| 7 | Tests, doc, packaging npm | release |
+| 1 | Plugin : `todowrite`/`todoread` + `ctx.storage` + injection contexte | **fait** (`index.js`) |
+| 2 | Permissions (`permission: "todowrite"`/`"todoread"`) | **fait** |
+| 3 | Vérification du chargement (OpenCode 2.0.16, `/api/plugin`) | **fait** (actif, outils enregistrés) |
+| 4 | Packaging npm / publication | à faire |
+| 5 | (optionnel) Panneau OpenChamber branché sur les todos | reporté |
+| 6 | (optionnel) Plugin TUI | reporté |
 
 ---
 
@@ -453,3 +453,48 @@ Aligné sur la table v1 → compatibilité de rendu avec
 - OpenChamber : `~/Documents/Projects/openchamber`
   (`packages/ui/src/sync/*`, `packages/web/server/lib/agent-tool/runtime.js`,
   `packages/extensions`, `packages/sdk`).
+
+---
+
+## 12. Révision finale : plugin OpenCode seul
+
+### Pourquoi le périmètre a été réduit
+
+Le besoin réel est : *que l'agent tienne une liste de tâches, visible dans le
+chat, dans OpenChamber*. Trois approches ont été comparées :
+
+| Critère | Plugin OpenCode seul | MCP | Intégration OpenChamber-native |
+|---|---|---|---|
+| Process séparé | Non | Oui | Non |
+| Persistance | `ctx.storage` intégré | fichier à gérer | store OpenChamber |
+| Réinjection anti-compaction | **Oui** (`session.hook`) | Non | Oui |
+| Modifie OpenCode/OpenChamber | Non | Non (config MCP) | **Oui** (core) |
+| Portabilité hors OpenCode | Non | Oui | Non |
+| Affichage | appels d'outil dans le chat | idem | panneau dédié |
+
+Le **plugin seul** gagne pour ce cas : aucune ressource supplémentaire, la liste
+survit à la compaction, aucune modification de core, persistance gratuite. Le
+MCP ne gagne que sur la portabilité, au prix d'un process et de la perte de
+l'injection. L'intégration OpenChamber-native n'apporte qu'un panneau, au prix
+d'un fork.
+
+### Contraintes découvertes (vérifiées dans le code v2)
+
+- Un plugin local doit être un **répertoire** dont le résolveur trouve
+  `<dir>/index.js` (ou `server.*`) : les `exports` du `package.json` **ne sont pas
+  utilisés** pour un dossier local (`packages/plugin/src/host.ts` +
+  `Bun.resolveSync`). D'où l'`index.js` à la racine.
+- Les outils de plugin ne déclenchent **pas** de permission automatiquement
+  (seuls les outils built-in appellent `permission.assert`) ; `options.permission`
+  ne sert qu'à nommer l'action pour un `allow`/`deny` éventuel.
+- `codemode: false` est nécessaire pour un outil **direct** (sinon Code Mode).
+- `session.hook("context")` accepte un callback **async** et expose
+  `{ sessionID, system, messages, … }`.
+
+### Implémentation livrée
+
+- `index.js` — le plugin : `todowrite`/`todoread`, `ctx.storage` par session,
+  injection via `ctx.session.hook("context")`.
+- `package.json` — paquet `opencode-todolist` (`exports: { ".": "./index.js" }`).
+- Vérifié sur OpenCode **2.0.16** : chargement (`/api/plugin` → `id: "todolist"`,
+  `state: active`) et outils enregistrés (`todowrite`, `todoread`).
